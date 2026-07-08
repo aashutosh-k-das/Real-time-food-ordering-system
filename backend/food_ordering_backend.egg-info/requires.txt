@@ -1,0 +1,12 @@
+alembic<2.0.0,>=1.16.5
+fastapi<1.0.0,>=0.116.0
+uvicorn[standard]<1.0.0,>=0.35.0
+sqlalchemy<3.0.0,>=2.0.42
+greenlet<4.0.0,>=3.0.0
+asyncpg<1.0.0,>=0.30.0
+aiosqlite<1.0.0,>=0.21.0
+redis<7.0.0,>=6.2.0
+pydantic-settings<3.0.0,>=2.10.0
+pyjwt<3.0.0,>=2.10.1
+email-validator<3.0.0,>=2.2.0
+pytest<9.0.0,>=8.4.1
