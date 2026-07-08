@@ -1,5 +1,7 @@
 # Real-Time Food Ordering & Delivery Tracking System
 
+Full-stack food delivery platform with real-time order tracking, WebSocket live updates, and concurrency-safe inventory management.
+
 Production-oriented portfolio project for a Foodhub-style ordering platform:
 
 - FastAPI backend with PostgreSQL, Redis, JWT auth, and WebSockets
