@@ -1,0 +1,9 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f4f5;
+  color: #18181b;
+}
