@@ -15,13 +15,24 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+user_role_enum = postgresql.ENUM("customer", "restaurant", "delivery_partner", name="user_role", create_type=False)
+order_status_enum = postgresql.ENUM(
+    "placed",
+    "confirmed",
+    "preparing",
+    "out_for_delivery",
+    "delivered",
+    "cancelled",
+    name="order_status",
+    create_type=False,
+)
+
 
 def upgrade() -> None:
     op.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    op.execute("CREATE TYPE user_role AS ENUM ('customer', 'restaurant', 'delivery_partner')")
-    op.execute(
-        "CREATE TYPE order_status AS ENUM ('placed', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')"
-    )
+    bind = op.get_bind()
+    user_role_enum.create(bind, checkfirst=True)
+    order_status_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "users",
@@ -29,7 +40,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("password_hash", sa.String(length=255), nullable=False),
         sa.Column("full_name", sa.String(length=120), nullable=False),
-        sa.Column("role", sa.Enum("customer", "restaurant", "delivery_partner", name="user_role"), nullable=False),
+        sa.Column("role", user_role_enum, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
         sa.UniqueConstraint("email"),
@@ -85,7 +96,7 @@ def upgrade() -> None:
         sa.Column("customer_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("restaurant_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("restaurants.id"), nullable=False),
         sa.Column("delivery_partner_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("delivery_partners.id"), nullable=True),
-        sa.Column("status", sa.Enum("placed", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled", name="order_status"), nullable=False),
+        sa.Column("status", order_status_enum, nullable=False),
         sa.Column("delivery_address", sa.Text(), nullable=False),
         sa.Column("delivery_latitude", sa.Numeric(9, 6), nullable=False),
         sa.Column("delivery_longitude", sa.Numeric(9, 6), nullable=False),
@@ -122,7 +133,7 @@ def upgrade() -> None:
         "order_status_events",
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True, nullable=False),
         sa.Column("order_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("orders.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("status", sa.Enum("placed", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled", name="order_status"), nullable=False),
+        sa.Column("status", order_status_enum, nullable=False),
         sa.Column("actor_user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
@@ -146,5 +157,5 @@ def downgrade() -> None:
     op.drop_index("idx_restaurants_name", table_name="restaurants")
     op.drop_table("restaurants")
     op.drop_table("users")
-    op.execute("DROP TYPE IF EXISTS order_status")
-    op.execute("DROP TYPE IF EXISTS user_role")
+    order_status_enum.drop(op.get_bind(), checkfirst=True)
+    user_role_enum.drop(op.get_bind(), checkfirst=True)

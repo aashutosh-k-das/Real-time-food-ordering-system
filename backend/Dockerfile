@@ -12,6 +12,8 @@ RUN apt-get update \
 
 COPY pyproject.toml /app/
 COPY alembic.ini /app/
+COPY schema.sql /app/
+COPY seed.sql /app/
 COPY app /app/app
 COPY migrations /app/migrations
 COPY scripts /app/scripts

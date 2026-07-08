@@ -1,4 +1,19 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
+import {
+  Bike,
+  Clock3,
+  LogOut,
+  LocateFixed,
+  MapPin,
+  Minus,
+  Plus,
+  Radio,
+  RefreshCcw,
+  ShieldCheck,
+  ShoppingBag,
+  Truck,
+  Utensils,
+} from "lucide-react";
 
 import {
   fetchCurrentUser,
@@ -12,8 +27,10 @@ import {
   updateCourierLocation,
   updateOrderStatus,
 } from "./api/client";
+import { LocationMap } from "./components/LocationMap";
 import { StatusTimeline } from "./components/StatusTimeline";
 import { useOrderSocket } from "./hooks/useOrderSocket";
+import { resolveLiveLocation } from "./lib/liveLocation";
 
 const SESSION_KEY = "food_ordering_session";
 const DELIVERY_FEE_MINOR = 499;
@@ -45,6 +62,12 @@ function roleTag(role) {
   if (role === "restaurant") return "Kitchen console";
   if (role === "delivery_partner") return "Courier console";
   return "Guest";
+}
+
+function RoleIcon({ role }) {
+  if (role === "restaurant") return <Utensils size={18} />;
+  if (role === "delivery_partner") return <Bike size={18} />;
+  return <ShoppingBag size={18} />;
 }
 
 function nextActionsFor(role, status) {
@@ -90,11 +113,11 @@ function AuthPanel({ loginForm, onChange, onSubmit, onDemoFill, loading }) {
     <section className="panel panel--auth">
       <div className="auth-layout">
         <div className="auth-story">
-          <p className="eyebrow">Real-time food ordering system</p>
-          <h1>Dispatch-grade ordering built like a product, not a tutorial.</h1>
+          <p className="eyebrow">Dispatch Control</p>
+          <h1>Live order orchestration for restaurant operations.</h1>
           <p className="lede">
-            Customer checkout, restaurant workflow, and delivery handoff all run on a transaction-safe
-            backend with live order updates over WebSockets.
+            Customer checkout, kitchen workflow, courier handoff, Leaflet location capture, and WebSocket
+            tracking in one portfolio-grade product surface.
           </p>
           <div className="hero-metrics">
             <div className="metric-card">
@@ -115,7 +138,7 @@ function AuthPanel({ loginForm, onChange, onSubmit, onDemoFill, loading }) {
         <div className="auth-card">
           <div className="panel__header">
             <div>
-              <p className="eyebrow">Role-aware demo access</p>
+              <p className="eyebrow">Demo access</p>
               <h2>Sign in</h2>
             </div>
             <p>Use a seeded account to open the matching workspace.</p>
@@ -139,6 +162,7 @@ function AuthPanel({ loginForm, onChange, onSubmit, onDemoFill, loading }) {
               />
             </label>
             <button className="primary-button" disabled={loading} type="submit">
+              <ShieldCheck size={18} />
               {loading ? "Signing in..." : "Enter workspace"}
             </button>
           </form>
@@ -150,6 +174,7 @@ function AuthPanel({ loginForm, onChange, onSubmit, onDemoFill, loading }) {
                 type="button"
                 onClick={() => onDemoFill(credentials)}
               >
+                <RoleIcon role={role} />
                 {roleLabel(role)}
               </button>
             ))}
@@ -168,7 +193,10 @@ function SessionPanel({ user, socketState, onLogout }) {
           <p className="eyebrow">Session</p>
           <h2>{user.full_name}</h2>
         </div>
-        <span className={`pill pill--${socketState}`}>socket {socketState}</span>
+        <span className={`pill pill--${socketState}`}>
+          <Radio size={14} />
+          socket {socketState}
+        </span>
       </div>
       <div className="session-summary">
         <div className="summary-card">
@@ -181,6 +209,7 @@ function SessionPanel({ user, socketState, onLogout }) {
         </div>
       </div>
       <button className="secondary-button secondary-button--wide" onClick={onLogout} type="button">
+        <LogOut size={18} />
         Sign out
       </button>
     </aside>
@@ -192,14 +221,17 @@ function StatsBand({ orders, selectedOrder }) {
     <section className="stats-band">
       <div className="stat-block">
         <span>Visible orders</span>
+        <ShoppingBag size={20} />
         <strong>{orders.length}</strong>
       </div>
       <div className="stat-block">
         <span>Selected total</span>
+        <ShieldCheck size={20} />
         <strong>{selectedOrder ? formatCurrency(selectedOrder.total_minor) : "—"}</strong>
       </div>
       <div className="stat-block">
         <span>ETA</span>
+        <Clock3 size={20} />
         <strong>{selectedOrder?.eta_minutes ? `${selectedOrder.eta_minutes} min` : "Pending"}</strong>
       </div>
     </section>
@@ -215,6 +247,7 @@ function OrderQueue({ orders, selectedOrderId, onRefresh, onSelect }) {
           <h2>Orders</h2>
         </div>
         <button className="secondary-button secondary-button--ghost" onClick={onRefresh} type="button">
+          <RefreshCcw size={17} />
           Refresh
         </button>
       </div>
@@ -253,6 +286,8 @@ function CustomerComposer({
   updateCartItem,
   deliveryDetails,
   setDeliveryDetails,
+  onUseLiveLocation,
+  liveLocationLoading,
   onSubmit,
   loading,
 }) {
@@ -296,11 +331,11 @@ function CustomerComposer({
                 <small>{item.available_inventory} available</small>
                 <div className="stepper">
                   <button type="button" onClick={() => updateCartItem(item.id, (cart[item.id] ?? 0) - 1)}>
-                    -
+                    <Minus size={15} />
                   </button>
                   <span>{cart[item.id] ?? 0}</span>
                   <button type="button" onClick={() => updateCartItem(item.id, (cart[item.id] ?? 0) + 1)}>
-                    +
+                    <Plus size={15} />
                   </button>
                 </div>
               </div>
@@ -315,7 +350,18 @@ function CustomerComposer({
             <p className="eyebrow">Checkout</p>
             <h2>Place order</h2>
           </div>
-          <p>Inventory is locked transactionally during checkout.</p>
+          <div>
+            <p>Inventory is locked transactionally during checkout.</p>
+            <button
+              className="secondary-button secondary-button--ghost secondary-button--compact"
+              type="button"
+              disabled={liveLocationLoading}
+              onClick={onUseLiveLocation}
+            >
+              <LocateFixed size={17} />
+              {liveLocationLoading ? "Resolving live location..." : "Use live location"}
+            </button>
+          </div>
         </div>
         <label className="field">
           <span>Address</span>
@@ -350,6 +396,21 @@ function CustomerComposer({
             />
           </label>
         </div>
+        <p className="helper-copy">
+          Use live GPS or click the Leaflet map to set the delivery coordinates.
+        </p>
+        <LocationMap
+          label="Delivery pin"
+          latitude={deliveryDetails.deliveryLatitude}
+          longitude={deliveryDetails.deliveryLongitude}
+          onChange={({ latitude, longitude }) =>
+            setDeliveryDetails((current) => ({
+              ...current,
+              deliveryLatitude: latitude,
+              deliveryLongitude: longitude,
+            }))
+          }
+        />
         <div className="receipt">
           {cartItems.map((item) => (
             <div key={item.id} className="receipt__row">
@@ -365,6 +426,7 @@ function CustomerComposer({
           </div>
         </div>
         <button className="primary-button" disabled={loading} type="submit">
+          <Truck size={18} />
           {loading ? "Placing order..." : "Place order"}
         </button>
       </form>
@@ -380,6 +442,8 @@ function OperationsPanel({
   courierDraft,
   setCourierDraft,
   onCourierUpdate,
+  onUseLiveCourierLocation,
+  liveLocationLoading,
 }) {
   const actions = nextActionsFor(user.role, selectedOrder?.status ?? "");
 
@@ -431,9 +495,36 @@ function OperationsPanel({
             />
             <span>Mark courier as available</span>
           </label>
-          <button className="secondary-button secondary-button--wide" onClick={onCourierUpdate} type="button">
-            Update courier location
-          </button>
+          <div className="button-stack">
+            <button className="secondary-button secondary-button--wide" onClick={onCourierUpdate} type="button">
+              <MapPin size={18} />
+              Update courier location
+            </button>
+            <button
+              className="secondary-button secondary-button--ghost secondary-button--wide"
+              disabled={liveLocationLoading}
+              onClick={onUseLiveCourierLocation}
+              type="button"
+            >
+              <LocateFixed size={18} />
+              {liveLocationLoading ? "Capturing live GPS..." : "Use live GPS location"}
+            </button>
+          </div>
+          <p className="helper-copy">
+            Drag the Leaflet pin or capture browser GPS to update courier availability and location.
+          </p>
+          <LocationMap
+            label="Courier pin"
+            latitude={courierDraft.latitude}
+            longitude={courierDraft.longitude}
+            onChange={({ latitude, longitude }) =>
+              setCourierDraft((current) => ({
+                ...current,
+                latitude,
+                longitude,
+              }))
+            }
+          />
         </div>
       ) : null}
 
@@ -452,6 +543,7 @@ function OperationsPanel({
                 onClick={() => onStatusChange(action)}
                 type="button"
               >
+                <Truck size={17} />
                 Move to {humanizeStatus(action)}
               </button>
             ))
@@ -532,6 +624,7 @@ export default function App() {
     longitude: 77.6387,
     is_available: true,
   });
+  const [locationLoading, setLocationLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const { messages, socketState } = useOrderSocket(selectedOrderId, token);
@@ -739,6 +832,49 @@ export default function App() {
     }
   }
 
+  async function handleUseLiveLocation() {
+    setLocationLoading(true);
+    setErrorMessage("");
+    try {
+      const liveLocation = await resolveLiveLocation();
+      setDeliveryDetails((current) => ({
+        ...current,
+        deliveryAddress: liveLocation.address,
+        deliveryLatitude: liveLocation.latitude,
+        deliveryLongitude: liveLocation.longitude,
+      }));
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  }
+
+  async function handleUseLiveCourierLocation() {
+    setLocationLoading(true);
+    setErrorMessage("");
+    try {
+      const liveLocation = await resolveLiveLocation();
+      setCourierDraft((current) => ({
+        ...current,
+        latitude: liveLocation.latitude,
+        longitude: liveLocation.longitude,
+      }));
+      await updateCourierLocation({
+        token,
+        payload: {
+          latitude: liveLocation.latitude,
+          longitude: liveLocation.longitude,
+          is_available: courierDraft.is_available,
+        },
+      });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  }
+
   function handleLogout() {
     setToken("");
     setUser(null);
@@ -767,7 +903,7 @@ export default function App() {
     <main className="shell">
       <header className="topbar panel">
         <div>
-          <p className="eyebrow">Real-time food ordering system</p>
+          <p className="eyebrow">Foodhub-style live dispatch</p>
           <h1>Operations Console</h1>
           <p className="lede">
             {roleLabel(user.role)} workspace with live order state, inventory-safe checkout, and
@@ -775,8 +911,12 @@ export default function App() {
           </p>
         </div>
         <div className="topbar__meta">
-          <span className={`pill pill--${socketState}`}>socket {socketState}</span>
+          <span className={`pill pill--${socketState}`}>
+            <Radio size={14} />
+            socket {socketState}
+          </span>
           <button className="secondary-button secondary-button--ghost" onClick={handleLogout} type="button">
+            <LogOut size={17} />
             Sign out
           </button>
         </div>
@@ -798,6 +938,8 @@ export default function App() {
               updateCartItem={updateCartItem}
               deliveryDetails={deliveryDetails}
               setDeliveryDetails={setDeliveryDetails}
+              onUseLiveLocation={handleUseLiveLocation}
+              liveLocationLoading={locationLoading}
               onSubmit={handlePlaceOrder}
               loading={actionLoading}
             />
@@ -810,6 +952,8 @@ export default function App() {
               courierDraft={courierDraft}
               setCourierDraft={setCourierDraft}
               onCourierUpdate={handleCourierUpdate}
+              onUseLiveCourierLocation={handleUseLiveCourierLocation}
+              liveLocationLoading={locationLoading}
             />
           )}
           <OrderQueue
