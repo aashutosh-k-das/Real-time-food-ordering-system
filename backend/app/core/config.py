@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     delivery_speed_kmh: float = 20.0
     prep_buffer_minutes: int = 12
+    anthropic_api_key: str | None = None
+    assistant_model: str = "claude-opus-5-5"
 
     model_config = SettingsConfigDict(
         env_file=".env",

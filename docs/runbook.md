@@ -61,6 +61,8 @@ npm install
 npm run dev
 ```
 
+The customer checkout and delivery partner console use Leaflet with OpenStreetMap tiles for the map picker. Browser GPS is used for the `Use live location` buttons, so location capture requires browser permission and works best on `localhost` or HTTPS.
+
 ## Manual JWT Helper
 
 Generate a customer token that matches the seeded customer:

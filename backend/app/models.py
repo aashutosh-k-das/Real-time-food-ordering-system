@@ -9,6 +9,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+def enum_values(enum_cls: type[enum.Enum]) -> list[str]:
+    return [member.value for member in enum_cls]
+
+
 class UserRole(str, enum.Enum):
     CUSTOMER = "customer"
     RESTAURANT = "restaurant"
@@ -38,7 +42,9 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role", values_callable=lambda enum_cls: enum_values(enum_cls)), nullable=False
+    )
 
 
 class Restaurant(TimestampMixin, Base):
@@ -93,7 +99,10 @@ class Order(TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False, index=True
     )
     delivery_partner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("delivery_partners.id"))
-    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus, name="order_status"), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus, name="order_status", values_callable=lambda enum_cls: enum_values(enum_cls)),
+        nullable=False,
+    )
     delivery_address: Mapped[str] = mapped_column(Text, nullable=False)
     delivery_latitude: Mapped[float] = mapped_column(Numeric(9, 6), nullable=False)
     delivery_longitude: Mapped[float] = mapped_column(Numeric(9, 6), nullable=False)
@@ -134,7 +143,10 @@ class OrderStatusEvent(Base):
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus, name="order_status"), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus, name="order_status", values_callable=lambda enum_cls: enum_values(enum_cls)),
+        nullable=False,
+    )
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     event_metadata: Mapped[dict] = mapped_column(
         "metadata",
