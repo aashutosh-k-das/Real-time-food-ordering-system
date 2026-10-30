@@ -92,3 +92,35 @@ export async function updateCourierLocation({ token, payload }) {
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
+
+export async function streamFoodGuide({ token, messages, onText, onReplace, onMode, signal }) {
+  const response = await fetch(`${API_BASE_URL}/assistant/chat`, {
+    method: "POST",
+    headers: buildHeaders(token),
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "The Food Guide is unavailable" }));
+    throw new Error(typeof error.detail === "string" ? error.detail : "The Food Guide is unavailable");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop();
+    for (const frame of frames) {
+      if (!frame.startsWith("data: ")) continue;
+      const event = JSON.parse(frame.slice(6));
+      if (event.type === "text") onText(event.text);
+      else if (event.type === "replace") onReplace(event.text);
+      else if (event.type === "mode") onMode?.(event.mode);
+      else if (event.type === "error") throw new Error(event.message);
+    }
+  }
+}

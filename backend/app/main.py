@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
-from app.api import auth, delivery, orders, restaurants
+from app.api import assistant, auth, delivery, orders, restaurants
 from app.core.config import get_settings
 from app.core.security import decode_token
 from app.db import SessionLocal, init_sqlite_demo_data
@@ -59,6 +59,7 @@ app.include_router(auth.router, prefix=get_settings().api_prefix)
 app.include_router(delivery.router, prefix=get_settings().api_prefix)
 app.include_router(restaurants.router, prefix=get_settings().api_prefix)
 app.include_router(orders.router, prefix=get_settings().api_prefix)
+app.include_router(assistant.router, prefix=get_settings().api_prefix)
 
 
 @app.get("/health")

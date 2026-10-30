@@ -202,6 +202,7 @@ async def create_order(
     await session.commit()
     await invalidate_menu_cache(redis, payload.restaurant_id)
     await session.refresh(order)
+    await session.refresh(order, attribute_names=["items"])
 
     live_message = OrderStatusMessage(
         order_id=order.id,
